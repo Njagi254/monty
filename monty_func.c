@@ -1,38 +1,92 @@
+#define _GNU_SOURCE
 #include "monty.h"
-void read_file(char *file, stack_t **stack)
+/**
+ * read_file - reads a bytecode file and runs commands
+ * @filename: pathname to file
+ * @stack: pointer to the top of the stack
+ */
+void read_file(char *filename, stack_t **stack)
 {
+	char *buffer = NULL;
 	char *line;
 	size_t i = 0;
-	int line_count = 1, s;
-	int check;
-	int read;
+	int line_count = 1;
+	FILE *file = fopen(filename, "r");
 
-	var_global.file = fopen(file, "r");
-
-	if (var_global.file == NULL)
+	if (file == NULL)
 	{
-		fprintf(stderr, "Error: Can't open file %s\n", file);
+		fprintf(stderr, "Error: Can't open file %s\n", filename);
 		exit(EXIT_FAILURE);
 	}
-
-	while ((read = getline(&var_global.buffer, &i,var_global.file) != -1))
+	while (getline(&buffer, &i, file) != -1)
 	{
-		line = parse_line(var_global.buffer, line_count);
+		line = parse_line(buffer);
 		if (line == NULL || line[0] == '#')
 		{
 			line_count++;
 			continue;
 		}
-		s = get_op_func(line, stack, line_count);
-		if (s == 1)
+		if (get_op_func(line) == NULL)
 		{
 			fprintf(stderr, "L%d: unknown instruction %s\n", line_count, line);
 			exit(EXIT_FAILURE);
 		}
+		get_op_func(line)(stack, line_count);
 		line_count++;
 	}
-	free(var_global.buffer);
-	check = fclose(var_global.file);
-	if (check == -1)
+	free(buffer);
+	if (fclose(file) == -1)
 		exit(-1);
+}
+
+/**
+ * get_op_func -  checks opcode and returns the correct function
+ * @str: the opcode
+ *
+ * Return: returns a function, or NULL on failure
+ */
+void (*get_op_func(char *str))(stack_t **stack, unsigned int line_number)
+{
+	int i;
+
+	instruction_t op[] = {
+		{"push", _push},
+		{"pall", _pall},
+		{"pint", _pint},
+		{"pop", _pop},
+		{"swap", _swap},
+		{"add", _add},
+		{"nop", _nop},
+		{"sub", _sub},
+		{"div", _div},
+		{"mul", _mul},
+		{"mod", _mod},
+		{"pchar", _pchar},
+		{"pstr", _pstr},
+		{NULL, NULL}
+	};
+
+	i = 0;
+	while (op[i].f != NULL && strcmp(op[i].opcode, str) != 0)
+	{
+		i++;
+	}
+
+	return (op[i].f);
+}
+
+/**
+ * parse_line - parses a line for an opcode and arguments
+ * @line: the line to be parsed
+ *
+ * Return: returns the opcode or null on failure
+ */
+char *parse_line(char *line)
+{
+	char *op_code;
+
+	op_code = strtok(line, "\n ");
+	if (op_code == NULL)
+		return (NULL);
+	return (op_code);
 }
